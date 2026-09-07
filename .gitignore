@@ -1,0 +1,21 @@
+# Data
+ptb-xl-a-large-publicly-available-electrocardiography-dataset-1.0.3/
+*.npy
+*.npz
+
+# Run outputs
+checkpoints/
+logs/
+*.pt
+*.log
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Editor / OS
+.vscode/
+.DS_Store
+Thumbs.db
