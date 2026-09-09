@@ -78,7 +78,7 @@ def run_experiment(leads=None, lead_set_name="full12", seed=42,
     criterion = nn.BCEWithLogitsLoss()
 
     best_auc = 0.0
-    epoch_range = tqdm(range(n_epochs), colour="magenta", desc="Training", leave=False)
+    epoch_range = tqdm(range(n_epochs), colour="cyan", desc="Training", leave=False)
     
     for epoch in epoch_range:      
         train_loss = train_one_epoch(model, loaders['train'], optimizer, scheduler, criterion)

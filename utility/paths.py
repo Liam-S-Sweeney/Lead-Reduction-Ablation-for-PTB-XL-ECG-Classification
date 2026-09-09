@@ -7,6 +7,8 @@ ROOT                = Path(__file__).parent.parent
 # Root Level Misc
 CACHE_PATH          = ROOT / "X_100hz_12x1000.npy"
 STATS_PATH          = ROOT / "norm_stats.npz"
+
+# Runs CSV
 RUNS_CSV            = ROOT / "runs.csv"
 
 # Full dataset
