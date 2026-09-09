@@ -2,6 +2,7 @@ import logging
 import numpy as np
 import torch
 from torch import nn
+from tqdm import tqdm
 from sklearn.metrics import roc_auc_score, average_precision_score
 from utility.startup import device_check, initialize_logger
 from utility.paths import CKPT_DIR
@@ -52,7 +53,7 @@ def train_one_epoch(model, loader, optimizer, scheduler, criterion):
 
 
 def run_experiment(leads=None, lead_set_name="full12", seed=42,
-                   max_lr=3e-3, weight_decay=0.0, n_epochs=30,
+                   max_lr=3e-3, weight_decay=0.0, n_epochs=10,
                    final_eval=False):
     logger = logging.getLogger(__name__)
 
@@ -75,17 +76,24 @@ def run_experiment(leads=None, lead_set_name="full12", seed=42,
         steps_per_epoch=len(loaders['train']))
     criterion = nn.BCEWithLogitsLoss()
 
+    print("\n\nBeginning training...\n\n")
+
     best_auc = 0.0
-    for epoch in range(n_epochs):
+
+    for epoch in tqdm(range(n_epochs), 
+                      desc="Training", colour=("#824bf8")
+                      ):
         train_loss = train_one_epoch(model, loaders['train'], optimizer, scheduler, criterion)
         val_probs, val_labels, val_loss = evaluate(model, loaders['val'], criterion)
         val_auc = roc_auc_score(val_labels, val_probs, average='macro')
 
+        tqdm.write(f"Epoch {epoch} has finished.")
         logger.info(f"{run_name} epoch {epoch}: train {train_loss:.4f} | "
                     f"val {val_loss:.4f} | auc {val_auc:.4f}")
         if val_auc > best_auc:
             best_auc = val_auc
             torch.save(model.state_dict(), ckpt_path)
+    print("\n\nDone with training!\n\n")
 
     model.load_state_dict(torch.load(ckpt_path, weights_only=True, map_location=device))
     eval_loader = loaders['test'] if final_eval else loaders['val']
