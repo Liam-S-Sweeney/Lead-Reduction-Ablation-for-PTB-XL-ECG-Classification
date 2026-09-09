@@ -1,5 +1,6 @@
 import csv
 import logging
+from tqdm import tqdm
 from utility.paths import RUNS_CSV
 from utility.startup import initialize_logger
 from train import run_experiment
@@ -35,8 +36,12 @@ if __name__ == "__main__":
     initialize_logger()
     logger = logging.getLogger(__name__)
 
-    for name, leads in LEAD_SETS.items():
-        for seed in SEEDS:
+    for name, leads in tqdm(LEAD_SETS.items(), 
+                            colour="yellow", desc="Lead Sets", leave=False
+                            ):
+        for seed in tqdm(SEEDS,
+                         colour="cyan", desc=f"{name} seeds", leave=False
+                         ):
             logger.info(f"starting {name} seed {seed}")
             try:
                 result = run_experiment(
