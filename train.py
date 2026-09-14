@@ -6,7 +6,7 @@ from torch import nn
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score, average_precision_score
 from utility.startup import device_check, initialize_logger
-from utility.paths import CKPT_DIR
+from utility.paths import CKPT_DIR, PREDS_DIR
 from data import generate_loaders, prepare_labels
 from model import ECGNet
 
@@ -61,7 +61,8 @@ def run_experiment(leads=None, lead_set_name="full12", seed=42,
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    run_name = f"{lead_set_name}_lr{max_lr}_wd{weight_decay}_ep{n_epochs}_seed{seed}"
+    split = "test" if final_eval else "val"
+    run_name = f"{lead_set_name}_lr{max_lr}_wd{weight_decay}_ep{n_epochs}_seed{seed}_{split}"
     CKPT_DIR.mkdir(exist_ok=True)
     ckpt_path = CKPT_DIR / f"best_{run_name}.pt"
 
@@ -78,7 +79,8 @@ def run_experiment(leads=None, lead_set_name="full12", seed=42,
     criterion = nn.BCEWithLogitsLoss()
 
     best_auc = 0.0
-    epoch_range = tqdm(range(n_epochs), colour="cyan", desc="Training", leave=False)
+    epoch_range = tqdm(range(n_epochs), colour="cyan",
+                   desc=f"{lead_set_name} s{seed}", leave=False)
     
     for epoch in epoch_range:      
         train_loss = train_one_epoch(model, loaders['train'], optimizer, scheduler, criterion)
@@ -99,6 +101,9 @@ def run_experiment(leads=None, lead_set_name="full12", seed=42,
     macro = roc_auc_score(labels, probs, average='macro')
     per_class = roc_auc_score(labels, probs, average=None)
     ap = average_precision_score(labels, probs, average=None)
+
+    PREDS_DIR.mkdir(exist_ok=True)
+    np.savez(PREDS_DIR / f"{run_name}.npz", probs=probs, labels=labels)
 
     return {
         "run_name": run_name,

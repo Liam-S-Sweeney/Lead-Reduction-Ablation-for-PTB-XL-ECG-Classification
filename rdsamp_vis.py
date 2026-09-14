@@ -1,14 +1,7 @@
 import pandas as pd
 import wfdb
 import pandas as pd
-import numpy as np
-import torch
-from torch.utils.data import DataLoader, Dataset
-from tqdm import tqdm
-from sklearn.preprocessing import MultiLabelBinarizer
-from functools import lru_cache
-from utility.startup import load_metadata, device_check
-from utility.paths import CACHE_PATH, FULL_DATASET_PATH, STATS_PATH
+from utility.paths import FULL_DATASET_PATH
 from data import prepare_labels
 
 

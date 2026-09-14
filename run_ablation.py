@@ -1,8 +1,9 @@
 import csv
+from datetime import datetime
 import logging
 from itertools import product
 from tqdm import tqdm
-from utility.paths import RUNS_CSV
+from utility.paths import RUNS_CSV, FINAL_RUNS_CSV
 from utility.startup import initialize_logger
 from train import run_experiment
 
@@ -26,20 +27,23 @@ CONFIGS = [
     ("device",       "I_II",     [0, 1]),               # I, II — rank-2 minimum
 ]
 
+RUN_ID = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 SEEDS = (0, 1, 2)
-
 HPARAMS = dict(n_epochs=10, max_lr=3e-3, weight_decay=0.0)
 
-
-def append_row(category, result, classes):
-    write_header = not RUNS_CSV.exists()
-    with open(RUNS_CSV, "a", newline="") as f:
+def append_row(category, result, classes, final_eval):
+    run = FINAL_RUNS_CSV if final_eval else RUNS_CSV
+    write_header = not run.exists()
+    with open(run, "a", newline="") as f:
         w = csv.writer(f)
         if write_header:
-            w.writerow(["category", "lead_set", "n_leads", "seed", "split", "macro",
-                        *[f"auc_{c}" for c in classes],
-                        *[f"ap_{c}" for c in classes]])
+            w.writerow([
+                "run_id",
+                "category", "lead_set", "n_leads", "seed", "split", "macro",
+                *[f"auc_{c}" for c in classes],
+                *[f"ap_{c}" for c in classes]])
         w.writerow([
+            RUN_ID,
             category, result["lead_set"], result["n_leads"],
             result["seed"], result["split"], f"{result['macro']:.4f}",
             *[f"{result['per_class'][c]:.4f}" for c in classes],
@@ -47,7 +51,7 @@ def append_row(category, result, classes):
         ])
 
 
-if __name__ == "__main__":
+def run_ablation(final_eval=False):
     initialize_logger()
     logger = logging.getLogger(__name__)
 
@@ -57,8 +61,13 @@ if __name__ == "__main__":
         logger.info(f"starting {name}, seed {seed}")
         try:
             result = run_experiment(leads=leads, lead_set_name=name,
-                                    seed=seed, final_eval=False, **HPARAMS)
-            append_row(category, result, result["classes"])
+                                    seed=seed, final_eval=final_eval, **HPARAMS)
+            append_row(category, result, result["classes"], final_eval=final_eval)
             logger.info(f"{name} seed {seed}: macro {result['macro']:.4f}")
+
         except Exception:
             logger.exception(f"{name} seed {seed} FAILED")
+
+
+if __name__ == "__main__":
+    run_ablation(final_eval=False) 

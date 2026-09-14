@@ -1,2 +1,0 @@
-https://www.aclsmedicaltraining.com/ecg-in-acute-myocardial-infarction
-    - ECGs in Acute Myocardial Infarction (run_ablation)
