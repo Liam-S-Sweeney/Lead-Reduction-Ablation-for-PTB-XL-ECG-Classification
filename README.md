@@ -242,4 +242,3 @@ rdsamp_vis.py      raw waveform plotting
 -   "Nyquist Theorem - an overview | ScienceDirect Topics." 14 Sept. 2026, doi:10.1016/B978-075067759-2/50006-5.
 -   "ECG Signal Quality: A Practical Guide for ECG Readings." 14 Sept. 2026, www.gehealthcare.com/en-gb/insights/article/ecg-signal-quality-a-practical-guide-for-ecg-readings.
 -   Bouzid, Zeineb, et al. "Remote and Wearable ECG Devices with Diagnostic Abilities in Adults: A State-of-the-Science Scoping Review." Heart Rhythm, vol. 19, no. 7, 9 Mar. 2022, p. 1192, doi:10.1016/j.hrthm.2022.02.030.
--   
