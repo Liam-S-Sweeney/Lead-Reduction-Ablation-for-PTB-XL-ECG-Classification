@@ -185,7 +185,7 @@ not adjudicated against outcomes.
 ## Reproducing
 
 ```bash
-git clone <repo>
+git clone https://github.com/Liam-S-Sweeney/Lead-Reduction-Ablation-for-PTB-XL-ECG-Classification.git
 cd ptbxl-ecg-classification
 python -m venv .venv && .venv\Scripts\activate      # Windows
 pip install -r requirements.txt
