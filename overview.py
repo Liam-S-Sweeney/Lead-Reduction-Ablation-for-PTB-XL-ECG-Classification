@@ -1,3 +1,7 @@
+"""
+Used for descritpive analysis of the PTB-XL Database
+"""
+
 import pandas as pd
 import logging
 from utility.startup import load_metadata
@@ -56,4 +60,8 @@ def data_overview():
             print(f"{col}'s dtype  {db[col].dtype} (NaN: {n_missing})")
 
 
-if __name__ == "__main__": data_overview()
+# if __name__ == "__main__": data_overview()
+
+from utility.startup import load_metadata
+db, _ = load_metadata()
+print((db.strat_fold == 9).sum())

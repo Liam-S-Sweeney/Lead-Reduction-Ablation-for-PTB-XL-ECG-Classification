@@ -1,3 +1,7 @@
+"""
+Initializes the functiosn that will be caleld throughout the modules
+"""
+
 import logging
 from functools import lru_cache
 import pandas as pd
@@ -7,6 +11,9 @@ from utility.paths import LOG_DIR, PTBXL_DB_PATH, SCP_STATEMENTS_PATH
 
 
 def initialize_logger():
+    """
+    Sets up the debug logger to keep track of pipeline info and warnings
+    """
     logger = logging.getLogger()          
     if logger.handlers:                   
         return logger
@@ -29,6 +36,10 @@ def initialize_logger():
 
 
 def device_check():
+    """
+    Verifies what device should used to run PyTorch with preference given
+    for CUDA -> MPS -> CPU (default)
+    """
     logger = logging.getLogger(__name__)
     if torch.cuda.is_available():
         device = torch.device("cuda")
@@ -42,6 +53,10 @@ def device_check():
 
 @lru_cache(maxsize=1)
 def load_metadata():
+    """
+    Used for easy access to the formated PTB-XL Database (id_col='ecg_id")
+    and to access the SCP statements
+    """
     logger = logging.getLogger(__name__)
     db = pd.read_csv(PTBXL_DB_PATH, index_col='ecg_id')
     db['scp_codes'] = db['scp_codes'].apply(ast.literal_eval)

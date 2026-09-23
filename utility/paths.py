@@ -1,5 +1,8 @@
-from pathlib import Path
+"""
+This file stores all file pathways that will be referenced in other modules.
+"""
 
+from pathlib import Path
 
 # Root
 ROOT                        = Path(__file__).parent.parent
