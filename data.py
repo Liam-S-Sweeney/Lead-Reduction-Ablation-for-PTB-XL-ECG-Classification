@@ -25,16 +25,24 @@ from utility.paths import CACHE_PATH, FULL_DATASET_PATH, STATS_PATH
 @lru_cache(maxsize=1)   # Keeps only single most recent function call + resutls in memory
 def prepare_labels():
     """
-    1.  Takes all rows in from the SCP Statements "Diagnostic Class" col, 
-        preprocesses the data to remove nulls, then takes those rows to make a mapping dictionary.\n
+    1.  Takes the rows of SCP Statements that have a value in the "Diagnostic Class" col
+    (only diagnostic statements do; form and rhythm statements are blank there, so they're dropped),
+    then uses those rows to make a code-to-superclass mapping dictionary.
 
     2.  A new col, "superclasses", is created out of sets of corresponding superclass vals from rows 
-        in the "scp_codes" col in the PTB-XL csv.\n
+        in the "scp_codes" col in the PTB-XL csv.
 
     3.  The "superclasses" col is converted from multi-label sets to binary column features composed 
-        of every unique superclass label as new cols then appends them to an updated PTB-XL dataframe.\n
+        of every unique superclass label as new cols then appends them to an updated PTB-XL dataframe.
 
     4.  From this new db, following recommendations, the data is split into train, val, and test masks.
+    
+    Returns:
+        db:                 updated PTB-XL DataFrame containing "superclasses" col 
+                            and one 0/1 col per class added
+        Y:                  (21799, 5) array containing 0/1 labels, row-aligned with db
+        classes:            list of classes in column order (alphabetical)
+        masks:              dict of boolean Series splits for 'train', 'val', and 'test'
     """
     logger = logging.getLogger(__name__)
     db, scp = load_metadata()
@@ -77,14 +85,17 @@ def prepare_labels():
 @lru_cache(maxsize=1)
 def npy_generation():
     """
-    If the cache is not already created, then:
-    1.  Utilizing the updated db from prepare_labels(), creates a tensor composed of:\n
-        - number ecgs in db * 12 leads channels * 1000 (10s * 100 Hz)
-    
-    2.  Each slice of 0s (12*1000 2D NumPy array) at index (i) in the tensor is replaced
-        by a corresponding  transposed waveform array then saves this file after checking 
-        checking integrity of copy with no missing missing records and cache alignment.\n
-    Then load the cache in read_only mode.
+    If the cache doesn't exist yet:
+    1.  Using the db from prepare_labels(), creates a float32 array of zeros with shape
+        (n records, 12 leads, 1000 samples = 10 s at 100 Hz).
+    2.  Fills each record's slice with its waveform, transposed from wfdb's
+        (time, leads) layout to the (leads, time) layout Conv1d expects.
+    3.  Before saving, checks that no records are missing, that no values are
+        NaN or Inf, and that a spot-checked row matches its source file.
+    Then memory-maps the cache read-only, so records are read from disk only when indexed.
+
+    Returns:
+        cache: memory-mapped (21799, 12, 1000) float32 array
     """
     logger = logging.getLogger(__name__)
 
@@ -162,7 +173,11 @@ class ECGDataset(Dataset):
             3.  Normalizes the raw voltages for more efficient learning (z-score)
             4.  Selects only rows for prespecified leads
             5.  Takes those rows' corresponding superclass labels (0/1 * 5) and signal 
-                and converts these into 2 float32 tensors
+                and converts these into two float32 tensors
+
+        Returns:
+            signal_tensor: (n_leads, 1000) float32, normalized
+            label_tensor:  (5,) float32 of 0/1 labels
         """
         global_i = self.indices[index]  # Pairs local index with global index to access Cache's actual index properly 
 
@@ -172,13 +187,14 @@ class ECGDataset(Dataset):
 
         label = self.Y[global_i]    # (5,)
 
-        signal_tensor = torch.tensor(signal, dtype=torch.float32)   # float32 balances precision, speed, and memory usage
-        label_tensor = torch.tensor(label, dtype=torch.float32)
+        signal_tensor = torch.tensor(signal, dtype=torch.float32)   # must match the model's float32 weights
+        label_tensor = torch.tensor(label, dtype=torch.float32)     # BCEWithLogitsLoss needs float targets
 
         return signal_tensor, label_tensor
 
 
 def _validate_norm_stats(mean, std):
+    """Raise if normalization stats have the wrong shape or contain NaN/Inf."""
     if mean.shape != (12, 1) or std.shape != (12, 1):
         raise ValueError(f"Shape mismatch: mean={mean.shape}, std={std.shape}")
     if not (np.isfinite(mean).all() and np.isfinite(std).all()):
@@ -188,8 +204,10 @@ def _validate_norm_stats(mean, std):
 @lru_cache(maxsize=1)
 def get_norm_stats():
     """
-    If "norm_stats.npz" exists, the length of its 'n_train' col matches the length of the training mask indices
-    with non NaN or Inf and correct shape match of mean/std, it returns the mean and std vals. Otherwise:
+    If norm_stats.npz exists, loads it and checks that its stored n_train matches the
+    current training split and that mean/std have the right shape and no NaN/Inf.
+    A mismatch raises an error (delete the file to recompute) rather than recomputing silently.
+    If the file doesn't exist:
     1.  Creating 1D NumPy arrays containing 12 initilizaed 0s for sums and sums squared, plus count = 0.
 
     2.  Then, in chunks (records, leads, time) of up to 512 training records read from the cache:
@@ -199,6 +217,11 @@ def get_norm_stats():
     
     3.  Finally, mean, var, and std are calculated using sums, sumsq, and count with mean, std, 
         and the length of the training indices being saved as STATS_PATH
+
+    Returns:
+        mean: (12, 1) float32, per-lead mean over all training samples
+        std:  (12, 1) float32, per-lead standard deviation (plus 1e-8)
+    The (12, 1) shape broadcasts against a (12, 1000) signal in __getitem__.
     """
     _, _, _, masks = prepare_labels()
     train_indices = np.where(masks['train'])[0]
@@ -225,7 +248,8 @@ def get_norm_stats():
         count += chunk.shape[0] * chunk.shape[2]
 
     mu = sums / count
-    var = np.maximum(sumsq / count - mu ** 2, 0.0)   # clamp float cancellation prevents negatives
+    var = np.maximum(sumsq / count - mu ** 2, 0.0)  # floating-point cancellation can make var slightly negative; 
+                                                    # clamp to 0
     raw_std = np.sqrt(var)
 
     if np.any(raw_std < 1e-3):                        # mV; below any real ECG signal
@@ -255,8 +279,11 @@ def generate_loaders(leads=None, workers=4, bs=64, device=None):
           for split in ('train', 'val', 'test')}
 
     use_cuda = device is not None and device.type == "cuda"
-    loader_kwargs = (dict(num_workers=workers, pin_memory=True,
-                          persistent_workers=workers > 0)
+    loader_kwargs = (dict(num_workers=workers,  # specifies how many subprocess used for data loading
+                          pin_memory=True,  # allocates your loaded data in "pinned" (page-locked) CPU memory
+                                            # significantly faster data transfer from CPU -> GPU
+                          persistent_workers=workers > 0)   # keeps data loader worker processes alive between 
+                                                            # epochs reducing overhead + speed of transitions
                      if use_cuda else {})
 
     return {
