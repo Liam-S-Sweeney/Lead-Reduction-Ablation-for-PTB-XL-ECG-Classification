@@ -26,7 +26,7 @@ hyper-parameters were frozen (n_epochs=10, max_lr=3e-3, weight_decay=0.0).
 
 ### Performance vs. lead count
 
-![macro AUC vs lead count](visuals\analysis\FINAL_macro_auc_vs_lead_count.png)
+![macro AUC vs lead count](visuals/analysis/FINAL_macro_auc_vs_lead_count.png)
 
 | Lead set | Leads | Macro AUC (test) |
 |---|---|---|
@@ -69,7 +69,7 @@ than benefiting from having them supplied explicitly.
 
 ### Per-class average precision
 
-![AP by class](visuals\analysis\FINAL_ap_by_class.png)
+![AP by class](visuals/analysis/FINAL_ap_by_class.png)
 
 Macro AUC hides substantial variation between classes. Average precision, whose baseline is the
 class prevalence rather than 0.5, tells a different story:
@@ -91,7 +91,7 @@ lead largely supports.
 
 ### Regional subsets at fixed lead count
 
-![regional subsets](visuals\analysis\FINAL_regions_3lead.png)
+![regional subsets](visuals/analysis/FINAL_regions_3lead.png)
 
 Comparing three-lead subsets drawn from different anatomical territories, with channel count
 held constant:
